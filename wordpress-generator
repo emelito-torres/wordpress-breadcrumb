@@ -1,0 +1,93 @@
+function freshstart_breadcrumbs() {
+  $end_list = '</ol><!-- End of breadcrumbs -->' . "\n";
+
+  //Initialize the value of the returned breadcrumbs string
+  $breadcrumbs_string = '<ol id="breadcrumbs-menu" class="breadcrumbs-menu clearfix" itemscope itemtype="https://schema.org/BreadcrumbsList">' . "\n";
+
+  //Menu starts with the ordered list from Home
+  $breadcrumbs_string .= freshstart_breadcrumb_list( home_url('/'), 'Home', '1' );
+
+  //And then return the main loop of the blog post
+  if ( !is_front_page() && is_home() ) {
+    $is_home_ID = get_option( 'page_for_posts' );
+    $breadcrumbs_string .= freshstart_breadcrumb_list( '', get_the_title( $is_home_ID ), '2' );
+  }
+
+  elseif ( is_page() ) {
+    $breadcrumbs_string .= freshstart_breadcrumb_list( '', get_the_title(), '2' );
+  }
+
+  elseif ( is_search() ){
+    $breadcrumbs_string .= freshstart_breadcrumb_list( '','Search results for ' . get_search_query(), '2' );
+  }
+
+  elseif ( is_archive() && !is_category() ) {
+    global $wp;
+    $breadcrumbs_string .= freshstart_breadcrumb_list( '', get_the_archive_title(), '2' );
+  }
+
+  elseif ( is_single() || is_category() ) {
+    $index = 1;
+    $breadcrumbs_count = 2;
+
+    if ( is_single() ) {
+
+      $this_cats = get_the_category()[0];
+
+      $this_breadcrumb_string .= freshstart_breadcrumb_cats( $this_cats->term_id );
+
+      $this_breadcrumb_string .= freshstart_breadcrumb_list( '', get_the_title() , 'num' );
+    }
+
+    else {
+      $this_cat = get_category( get_query_var( 'cat' ) );
+      $this_breadcrumb_string .=  freshstart_breadcrumb_cats( $this_cat->cat_ID );
+    }
+    while ( strpos( $this_breadcrumb_string, 'num' ) !== false ) {
+      $breadcrumbs_count = ( ( $index % 2 ) !== 0 ) ? ( $breadcrumbs_count ) : ( $breadcrumbs_count - 1 );
+      $this_breadcrumb_string = preg_replace( '/num/', $breadcrumbs_count, $this_breadcrumb_string, 1 );
+
+      $index++;
+      $breadcrumbs_count++;       
+    }
+    $breadcrumbs_string .= $this_breadcrumb_string;
+  }  
+  return $breadcrumbs_string . $end_list;
+}
+
+
+// Function constructor for each list element in the breadcrumbs list menu
+function freshstart_breadcrumb_list( $link, $name, $breadcrumb_id ) {
+  $newline = "\n";
+  $indent = "\t";
+
+  $html = sprintf('<li id="breadcrumb-item-%3$s" class="breadcrumb-list-item" itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">%1$s%2$s',
+    $newline,
+    $indent,
+    $breadcrumb_id
+  );
+  $html .= ( !$link ) ? '' : sprintf('<a href="%s" itemscope itemtype="https://schema.org/Thing" itemprop="item">',
+      esc_url( $link )
+  );
+  $html .= sprintf('<span itemprop="name">%s</span>', $name );
+  $html .= ( !$link ) ? '' : sprintf('</a>%1$s%2$s', $newline, $indent );
+  $html .= sprintf('<meta itemprop="position" content="%2$s" />%1$s</li>%1$s', $newline, $breadcrumb_id );
+
+  return $html;
+}
+
+
+// Returns category list for breadcrumbs 
+function freshstart_breadcrumb_cats( $id, $visited = array() ) {
+    
+    $chain = '';
+    $parent = get_term( $id, 'category' );
+    $name = $parent->name;
+
+    if ( $parent->parent && ( $parent->parent != $parent->term_id) && !in_array( $parent->parent, $visited) ) {
+        $visited[] = $parent->parent;
+        $chain .= freshstart_breadcrumb_cats( $parent->parent, $visited );
+    }   
+    $chain .= freshstart_breadcrumb_list( get_category_link( $parent->term_id ) , $name , 'num' );
+    return $chain;
+}
